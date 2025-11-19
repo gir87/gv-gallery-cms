@@ -1,6 +1,8 @@
-import React from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Photo, PhotoSeries } from '../types';
 import { PhotoGrid } from '../components/PhotoGrid';
+import { Lightbox } from '../components/Lightbox';
 
 interface PublicViewProps {
   photos: Photo[];
@@ -9,40 +11,69 @@ interface PublicViewProps {
 }
 
 export const PublicView: React.FC<PublicViewProps> = ({ photos, seriesList, currentSeriesId }) => {
-  
-  // If viewing a specific series
-  if (currentSeriesId) {
-    const activeSeries = seriesList.find(s => s.id === currentSeriesId);
-    const seriesPhotos = photos.filter(p => p.seriesId === currentSeriesId);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-    if (!activeSeries) return <div>Series not found</div>;
+  // Filter photos based on current view
+  const displayedPhotos = useMemo(() => {
+    let list = [...photos];
+    if (currentSeriesId) {
+      list = list.filter(p => p.seriesId === currentSeriesId);
+    } else {
+      // Sort by newest first for home view
+      list.sort((a, b) => b.createdAt - a.createdAt);
+    }
+    return list;
+  }, [photos, currentSeriesId]);
 
-    return (
-      <div className="max-w-[1600px] mx-auto px-4 md:px-12 py-12 animate-fade-in">
-        <div className="mb-16 max-w-2xl">
-          <h2 className="text-4xl md:text-5xl font-serif mb-6">{activeSeries.title}</h2>
-          <p className="text-neutral-500 text-lg font-light leading-relaxed">{activeSeries.description}</p>
-        </div>
-        <PhotoGrid photos={seriesPhotos} />
-      </div>
-    );
-  }
+  const activeSeries = currentSeriesId ? seriesList.find(s => s.id === currentSeriesId) : null;
 
-  // Home View - Show mixed portfolio or highlight recent works
-  // To look like the reference, we show a mix, or perhaps just the grid of all "Portfolio" items
-  // We exclude photos that are strictly in a series unless we want a "All Work" feed.
-  // Let's show everything sorted by date new -> old.
-  const sortedPhotos = [...photos].sort((a, b) => b.createdAt - a.createdAt);
+  const handlePhotoClick = (photo: Photo) => {
+    const index = displayedPhotos.findIndex(p => p.id === photo.id);
+    if (index >= 0) {
+      setLightboxIndex(index);
+    }
+  };
+
+  const handleNext = () => {
+    if (lightboxIndex === null) return;
+    setLightboxIndex((prev) => (prev !== null && prev + 1 < displayedPhotos.length ? prev + 1 : 0));
+  };
+
+  const handlePrev = () => {
+    if (lightboxIndex === null) return;
+    setLightboxIndex((prev) => (prev !== null && prev - 1 >= 0 ? prev - 1 : displayedPhotos.length - 1));
+  };
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 md:px-12 py-12 animate-fade-in">
-       <div className="mb-16 max-w-2xl">
-          <h2 className="text-4xl md:text-5xl font-serif mb-6">Selected Works</h2>
-          <p className="text-neutral-500 text-lg font-light leading-relaxed">
-            A collection of moments, light, and shadow captured across the globe.
-          </p>
-        </div>
-      <PhotoGrid photos={sortedPhotos} />
-    </div>
+    <>
+      <div className="max-w-[1600px] mx-auto px-4 md:px-12 py-12 animate-fade-in">
+        {currentSeriesId && activeSeries ? (
+          <div className="mb-16 max-w-2xl">
+            <h2 className="text-4xl md:text-5xl font-serif mb-6">{activeSeries.title}</h2>
+            <p className="text-neutral-500 text-lg font-light leading-relaxed">{activeSeries.description}</p>
+          </div>
+        ) : (
+          <div className="mb-16 max-w-2xl">
+            <h2 className="text-4xl md:text-5xl font-serif mb-6">Selected Works</h2>
+            <p className="text-neutral-500 text-lg font-light leading-relaxed">
+              A collection of moments, light, and shadow captured across the globe.
+            </p>
+          </div>
+        )}
+        
+        <PhotoGrid photos={displayedPhotos} onPhotoClick={handlePhotoClick} />
+      </div>
+
+      {lightboxIndex !== null && (
+        <Lightbox 
+          photo={displayedPhotos[lightboxIndex]}
+          currentIndex={lightboxIndex}
+          total={displayedPhotos.length}
+          onClose={() => setLightboxIndex(null)}
+          onNext={handleNext}
+          onPrev={handlePrev}
+        />
+      )}
+    </>
   );
 };

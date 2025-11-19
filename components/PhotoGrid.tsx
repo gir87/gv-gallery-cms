@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Photo } from '../types';
 
@@ -16,7 +17,7 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ photos, onPhotoClick }) =>
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[10px]">
+    <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4 pr-4">
       {photos.map((photo) => (
         <PhotoCard key={photo.id} photo={photo} onClick={() => onPhotoClick && onPhotoClick(photo)} />
       ))}
@@ -45,11 +46,8 @@ const PhotoCard: React.FC<{ photo: Photo; onClick: () => void }> = ({ photo, onC
         />
         
         {/* Overlay Info */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-          <h3 className="text-white font-serif text-lg italic">{photo.title}</h3>
-          {photo.description && (
-            <p className="text-white/80 text-xs mt-1 font-sans font-light line-clamp-2">{photo.description}</p>
-          )}
+        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+          <h3 className="text-white font-serif text-lg italic drop-shadow-md">{photo.title}</h3>
         </div>
       </div>
     </div>

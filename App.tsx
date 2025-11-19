@@ -2,26 +2,52 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { PublicView } from './pages/PublicView';
-import { NavigationState } from './types';
-import { getPhotos, getSeries } from './services/storageService';
+import { Login } from './components/Login';
+import { NavigationState, Photo, PhotoSeries } from './types';
+import { fetchData, isAuthenticated, logout } from './services/storageService';
 
 function App() {
   const [navState, setNavState] = useState<NavigationState>({ view: 'home' });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // Data State
-  const [photos, setPhotos] = useState(getPhotos());
-  const [series, setSeries] = useState(getSeries());
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [series, setSeries] = useState<PhotoSeries[]>([]);
 
-  const refreshData = () => {
-    setPhotos(getPhotos());
-    setSeries(getSeries());
+  const loadData = async () => {
+    const data = await fetchData();
+    setPhotos(data.photos);
+    setSeries(data.series);
+    setLoading(false);
   };
 
+  useEffect(() => {
+    loadData();
+    setIsAdmin(isAuthenticated());
+  }, []);
+
   const handleNavigate = (view: 'home' | 'series' | 'admin', seriesId?: string) => {
+    if (view === 'admin' && !isAdmin) {
+       // Just verify session
+       if (isAuthenticated()) {
+         setIsAdmin(true);
+       }
+    }
     setNavState({ view, seriesId });
     setSidebarOpen(false);
     window.scrollTo(0, 0);
+  };
+
+  const handleLoginSuccess = () => {
+    setIsAdmin(true);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsAdmin(false);
+    setNavState({ view: 'home' });
   };
 
   return (
@@ -39,18 +65,38 @@ function App() {
         {/* Mobile Header Spacer */}
         <div className="h-16 md:hidden"></div>
 
-        {navState.view === 'admin' ? (
-          <AdminDashboard 
-            photos={photos} 
-            series={series} 
-            refreshData={refreshData}
-          />
+        {loading ? (
+           <div className="flex items-center justify-center h-screen">
+             <div className="animate-pulse text-neutral-400 tracking-widest text-sm uppercase">Loading Portfolio...</div>
+           </div>
         ) : (
-          <PublicView 
-            photos={photos}
-            seriesList={series}
-            currentSeriesId={navState.seriesId}
-          />
+          <>
+            {navState.view === 'admin' ? (
+              isAdmin ? (
+                <div className="relative">
+                  <button 
+                    onClick={handleLogout} 
+                    className="absolute top-6 right-6 text-xs text-red-500 hover:text-red-700 uppercase tracking-widest"
+                  >
+                    Logout
+                  </button>
+                  <AdminDashboard 
+                    photos={photos} 
+                    series={series} 
+                    refreshData={loadData}
+                  />
+                </div>
+              ) : (
+                <Login onLoginSuccess={handleLoginSuccess} />
+              )
+            ) : (
+              <PublicView 
+                photos={photos}
+                seriesList={series}
+                currentSeriesId={navState.seriesId}
+              />
+            )}
+          </>
         )}
       </main>
     </div>

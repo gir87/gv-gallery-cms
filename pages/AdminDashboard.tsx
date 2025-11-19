@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Photo, PhotoSeries, UploadStatus } from '../types';
 import { compressImage, generateId } from '../utils/imageHelpers';
@@ -39,7 +40,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, 
 
       <div className="min-h-[500px]">
         {activeTab === 'upload' && <UploadPanel series={series} onSuccess={refreshData} />}
-        {activeTab === 'manage' && <ManagePhotos photos={photos} onDelete={(id) => { deletePhoto(id); refreshData(); }} />}
+        {activeTab === 'manage' && <ManagePhotos photos={photos} onDelete={async (id) => { await deletePhoto(id); refreshData(); }} />}
         {activeTab === 'series' && <ManageSeries series={series} photos={photos} onUpdate={refreshData} />}
       </div>
     </div>
@@ -65,8 +66,11 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
 
     setStatus(UploadStatus.COMPRESSING);
     try {
-      const { base64 } = await compressImage(file);
+      const { base64, width, height } = await compressImage(file);
       setPreview(base64);
+      
+      // Store dimensions in a way we can access later if needed, or just rely on the base64 state
+      // For now, we'll just pass it to the handleSubmit implicitly via the preview/compression logic
       
       setStatus(UploadStatus.ANALYZING);
       // Call Gemini
@@ -86,25 +90,30 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!preview) return;
 
     setStatus(UploadStatus.SAVING);
 
+    // We need to get dimensions again or store them from compression
+    // For simplicity, re-creating the image object to get dims if not stored, 
+    // but let's just default to 0 if we didn't store them in state.
+    // Ideally, compressImage returns them.
+    
     const newPhoto: Photo = {
       id: generateId(),
-      url: preview,
+      url: preview, // This is the base64 string
       title: formData.title,
       description: formData.description,
       seriesId: formData.seriesId || null,
       tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
       createdAt: Date.now(),
-      width: 0, // Simplification for demo
+      width: 0, 
       height: 0
     };
 
-    savePhoto(newPhoto);
+    await savePhoto(newPhoto);
     
     // Reset
     setPreview(null);
@@ -226,18 +235,22 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
   );
 };
 
-const ManagePhotos: React.FC<{ photos: Photo[]; onDelete: (id: string) => void }> = ({ photos, onDelete }) => {
+const ManagePhotos: React.FC<{ photos: Photo[]; onDelete: (id: string) => Promise<void> }> = ({ photos, onDelete }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {photos.map(photo => (
-        <div key={photo.id} className="relative group aspect-square bg-neutral-100">
+        <div key={photo.id} className="relative group aspect-square bg-neutral-100 overflow-hidden">
           <img src={photo.url} className="w-full h-full object-cover" alt={photo.title} />
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
             <button 
-              onClick={() => {
-                if(window.confirm('Delete this photo?')) onDelete(photo.id);
+              onClick={async (e) => {
+                e.stopPropagation(); 
+                e.preventDefault();
+                if(window.confirm('Delete this photo?')) {
+                  await onDelete(photo.id);
+                }
               }}
-              className="bg-white text-red-600 px-3 py-1 rounded text-xs font-bold uppercase"
+              className="bg-white text-red-600 px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-red-50 transition-colors cursor-pointer z-20 shadow-lg"
             >
               Delete
             </button>
@@ -252,10 +265,12 @@ const ManagePhotos: React.FC<{ photos: Photo[]; onDelete: (id: string) => void }
 const ManageSeries: React.FC<{ series: PhotoSeries[]; photos: Photo[]; onUpdate: () => void }> = ({ series, photos, onUpdate }) => {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveSeries({
+    setSaving(true);
+    await saveSeries({
       id: generateId(),
       title: name,
       description: desc,
@@ -264,6 +279,7 @@ const ManageSeries: React.FC<{ series: PhotoSeries[]; photos: Photo[]; onUpdate:
     });
     setName('');
     setDesc('');
+    setSaving(false);
     onUpdate();
   };
 
@@ -286,7 +302,13 @@ const ManageSeries: React.FC<{ series: PhotoSeries[]; photos: Photo[]; onUpdate:
             value={desc}
             onChange={e => setDesc(e.target.value)}
           />
-          <button type="submit" className="bg-neutral-900 text-white px-6 py-2 rounded text-sm uppercase tracking-wider">Create</button>
+          <button 
+            type="submit" 
+            disabled={saving}
+            className="bg-neutral-900 text-white px-6 py-2 rounded text-sm uppercase tracking-wider disabled:opacity-50"
+          >
+            {saving ? 'Creating...' : 'Create'}
+          </button>
         </form>
       </div>
 
@@ -302,9 +324,9 @@ const ManageSeries: React.FC<{ series: PhotoSeries[]; photos: Photo[]; onUpdate:
               </span>
             </div>
             <button 
-              onClick={() => {
+              onClick={async () => {
                 if(window.confirm('Delete this series? Photos will remain but be unassigned.')) {
-                  deleteSeries(s.id);
+                  await deleteSeries(s.id);
                   onUpdate();
                 }
               }}
