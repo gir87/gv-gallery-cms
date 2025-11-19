@@ -4,11 +4,14 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // base: './' is crucial for shared hosting. 
-  // It ensures assets are loaded relatively (e.g. "assets/script.js" instead of "/assets/script.js")
+  // base: './' ensures relative paths for assets (crucial for shared hosting)
   base: './', 
+  build: {
+    // Flatten the output directory so JS/CSS are next to index.html
+    assetsDir: '', 
+  },
   server: {
-    // Proxy API requests during development to avoid CORS issues if running PHP locally
+    // Proxy API requests during development
     proxy: {
       '/api.php': 'http://localhost:8000' 
     }
