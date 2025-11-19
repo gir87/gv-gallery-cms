@@ -33,8 +33,6 @@ export const login = async (password: string): Promise<boolean> => {
 
 export const isAuthenticated = (): boolean => {
   // Checks if a token exists client-side. 
-  // Real security is handled by the backend API not accepting requests without valid session/auth if you extended it,
-  // but for this simple CMS, existence of the token allows UI access.
   return !!localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN);
 };
 
@@ -76,13 +74,8 @@ export const fetchData = async (): Promise<{ photos: Photo[], series: PhotoSerie
 
     const data = await res.json();
     
-    // Ensure we map the data correctly
-    // The PHP API returns 'url' relative to domain (e.g. 'uploads/file.jpg')
-    // or base64 if it was a legacy upload.
     const formattedPhotos = (data.photos || []).map((p: any) => ({
       ...p,
-      // If it's a relative path and doesn't start with data: or http, prepend nothing (browser handles relative)
-      // or you could prepend a base domain if needed.
       url: p.url 
     }));
 
@@ -92,7 +85,6 @@ export const fetchData = async (): Promise<{ photos: Photo[], series: PhotoSerie
     };
   } catch (e) {
     console.error("Failed to fetch data from API:", e);
-    // Return empty arrays so the UI doesn't crash, but show nothing
     return { photos: [], series: [] };
   }
 };
@@ -107,6 +99,16 @@ export const savePhoto = async (photo: Photo): Promise<void> => {
   });
   
   if (!res.ok) throw new Error('Failed to save photo to server');
+};
+
+export const updatePhoto = async (photo: Photo): Promise<void> => {
+  const res = await fetch(`${API_URL}?action=update_photo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(photo)
+  });
+  
+  if (!res.ok) throw new Error('Failed to update photo on server');
 };
 
 export const deletePhoto = async (id: string): Promise<void> => {

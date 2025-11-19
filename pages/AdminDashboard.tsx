@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Photo, PhotoSeries, UploadStatus } from '../types';
 import { compressImage, generateId } from '../utils/imageHelpers';
-import { savePhoto, deletePhoto, saveSeries, deleteSeries, updatePassword } from '../services/storageService';
+import { savePhoto, deletePhoto, saveSeries, deleteSeries, updatePassword, updatePhoto } from '../services/storageService';
 
 interface AdminDashboardProps {
   photos: Photo[];
@@ -11,6 +11,7 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, refreshData }) => {
   const [activeTab, setActiveTab] = useState<'upload' | 'manage' | 'series' | 'settings'>('upload');
+  const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
@@ -38,10 +39,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, 
 
       <div className="min-h-[500px]">
         {activeTab === 'upload' && <UploadPanel series={series} onSuccess={refreshData} />}
-        {activeTab === 'manage' && <ManagePhotos photos={photos} onDelete={async (id) => { await deletePhoto(id); refreshData(); }} />}
+        
+        {activeTab === 'manage' && (
+          <ManagePhotos 
+            photos={photos} 
+            onDelete={async (id) => { await deletePhoto(id); refreshData(); }} 
+            onEdit={(photo) => setEditingPhoto(photo)}
+          />
+        )}
+        
         {activeTab === 'series' && <ManageSeries series={series} photos={photos} onUpdate={refreshData} />}
         {activeTab === 'settings' && <SettingsPanel />}
       </div>
+
+      {/* Edit Modal */}
+      {editingPhoto && (
+        <EditPhotoModal 
+          photo={editingPhoto} 
+          series={series}
+          onClose={() => setEditingPhoto(null)}
+          onSave={async (updated) => {
+            await updatePhoto(updated);
+            setEditingPhoto(null);
+            refreshData();
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -293,13 +316,28 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
   );
 };
 
-const ManagePhotos: React.FC<{ photos: Photo[]; onDelete: (id: string) => Promise<void> }> = ({ photos, onDelete }) => {
+interface ManagePhotosProps {
+  photos: Photo[];
+  onDelete: (id: string) => Promise<void>;
+  onEdit: (photo: Photo) => void;
+}
+
+const ManagePhotos: React.FC<ManagePhotosProps> = ({ photos, onDelete, onEdit }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {photos.map(photo => (
         <div key={photo.id} className="relative group aspect-square bg-neutral-100 overflow-hidden">
           <img src={photo.url} className="w-full h-full object-cover" alt={photo.title} />
-          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 z-10">
+             <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(photo);
+              }}
+              className="bg-white text-neutral-900 px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-neutral-100 transition-colors cursor-pointer z-20 shadow-lg w-24"
+            >
+              Edit
+            </button>
             <button 
               onClick={async (e) => {
                 e.stopPropagation(); 
@@ -308,7 +346,7 @@ const ManagePhotos: React.FC<{ photos: Photo[]; onDelete: (id: string) => Promis
                   await onDelete(photo.id);
                 }
               }}
-              className="bg-white text-red-600 px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-red-50 transition-colors cursor-pointer z-20 shadow-lg"
+              className="bg-white text-red-600 px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-red-50 transition-colors cursor-pointer z-20 shadow-lg w-24"
             >
               Delete
             </button>
@@ -316,6 +354,112 @@ const ManagePhotos: React.FC<{ photos: Photo[]; onDelete: (id: string) => Promis
         </div>
       ))}
       {photos.length === 0 && <p className="col-span-full text-neutral-400 text-sm">No photos uploaded yet.</p>}
+    </div>
+  );
+};
+
+const EditPhotoModal: React.FC<{ 
+  photo: Photo; 
+  series: PhotoSeries[]; 
+  onClose: () => void;
+  onSave: (photo: Photo) => Promise<void>;
+}> = ({ photo, series, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    title: photo.title,
+    description: photo.description,
+    tags: photo.tags.join(', '),
+    seriesId: photo.seriesId || ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    
+    const updated: Photo = {
+      ...photo,
+      title: formData.title,
+      description: formData.description,
+      seriesId: formData.seriesId || null,
+      tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean)
+    };
+
+    await onSave(updated);
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b border-neutral-100 flex justify-between items-center">
+          <h3 className="font-serif text-xl">Edit Photo Details</h3>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900">
+            <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        
+        <div className="p-6 overflow-y-auto flex-1">
+          <div className="flex gap-6 flex-col md:flex-row">
+            <div className="w-full md:w-1/3">
+              <img src={photo.url} className="w-full rounded-lg shadow-sm" alt="Preview" />
+            </div>
+            <form id="edit-form" onSubmit={handleSubmit} className="flex-1 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Title</label>
+                <input 
+                  value={formData.title}
+                  onChange={e => setFormData({...formData, title: e.target.value})}
+                  className="w-full border border-neutral-200 rounded p-2 focus:border-neutral-900 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Series</label>
+                <select 
+                  value={formData.seriesId}
+                  onChange={e => setFormData({...formData, seriesId: e.target.value})}
+                  className="w-full border border-neutral-200 rounded p-2 focus:border-neutral-900 outline-none"
+                >
+                  <option value="">None (Single Photo)</option>
+                  {series.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Tags</label>
+                <input 
+                  value={formData.tags}
+                  onChange={e => setFormData({...formData, tags: e.target.value})}
+                  className="w-full border border-neutral-200 rounded p-2 focus:border-neutral-900 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Description</label>
+                <textarea 
+                  value={formData.description}
+                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  className="w-full border border-neutral-200 rounded p-2 focus:border-neutral-900 outline-none h-24 text-sm"
+                />
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex justify-end gap-3">
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-neutral-500 hover:text-neutral-900"
+          >
+            Cancel
+          </button>
+          <button 
+            form="edit-form"
+            type="submit"
+            disabled={saving}
+            className="px-6 py-2 bg-neutral-900 text-white rounded text-sm uppercase tracking-wider hover:bg-neutral-800 disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
