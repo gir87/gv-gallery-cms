@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Photo, PhotoSeries, UploadStatus } from '../types';
 import { compressImage, generateId } from '../utils/imageHelpers';
 import { savePhoto, deletePhoto, saveSeries, deleteSeries } from '../services/storageService';
@@ -65,7 +64,8 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
 
     setStatus(UploadStatus.COMPRESSING);
     try {
-      const { base64, width, height } = await compressImage(file);
+      // We only need base64 for the upload preview and saving
+      const { base64 } = await compressImage(file);
       setPreview(base64);
       
       // Use filename as default title (remove extension)
