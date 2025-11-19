@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Photo, PhotoSeries, UploadStatus } from '../types';
 import { compressImage, generateId } from '../utils/imageHelpers';
 import { savePhoto, deletePhoto, saveSeries, deleteSeries, updatePassword, updatePhoto } from '../services/storageService';
