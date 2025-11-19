@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Photo, PhotoSeries, UploadStatus } from '../types';
 import { compressImage, generateId } from '../utils/imageHelpers';
-import { savePhoto, deletePhoto, saveSeries, deleteSeries } from '../services/storageService';
+import { savePhoto, deletePhoto, saveSeries, deleteSeries, updatePassword } from '../services/storageService';
 
 interface AdminDashboardProps {
   photos: Photo[];
@@ -10,7 +10,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, refreshData }) => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'manage' | 'series'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'manage' | 'series' | 'settings'>('upload');
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
@@ -20,12 +20,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, 
       </header>
 
       {/* Tabs */}
-      <div className="flex space-x-6 mb-8">
-        {['upload', 'manage', 'series'].map(tab => (
+      <div className="flex space-x-6 mb-8 overflow-x-auto no-scrollbar">
+        {['upload', 'manage', 'series', 'settings'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab as any)}
-            className={`pb-2 text-sm uppercase tracking-wider border-b-2 transition-colors ${
+            className={`pb-2 text-sm uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab 
                 ? 'border-neutral-900 text-neutral-900' 
                 : 'border-transparent text-neutral-400 hover:text-neutral-600'
@@ -40,12 +40,86 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, 
         {activeTab === 'upload' && <UploadPanel series={series} onSuccess={refreshData} />}
         {activeTab === 'manage' && <ManagePhotos photos={photos} onDelete={async (id) => { await deletePhoto(id); refreshData(); }} />}
         {activeTab === 'series' && <ManageSeries series={series} photos={photos} onUpdate={refreshData} />}
+        {activeTab === 'settings' && <SettingsPanel />}
       </div>
     </div>
   );
 };
 
 // --- Sub Components ---
+
+const SettingsPanel: React.FC = () => {
+  const [pass, setPass] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [msg, setMsg] = useState('');
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pass.length < 6) {
+      setMsg('Password must be at least 6 characters');
+      setStatus('error');
+      return;
+    }
+    if (pass !== confirm) {
+      setMsg('Passwords do not match');
+      setStatus('error');
+      return;
+    }
+
+    setStatus('saving');
+    const success = await updatePassword(pass);
+    if (success) {
+      setStatus('success');
+      setPass('');
+      setConfirm('');
+      setMsg('Password updated successfully.');
+    } else {
+      setStatus('error');
+      setMsg('Failed to update password. Check server connection.');
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-12 bg-neutral-50 p-8 rounded-xl border border-neutral-200">
+      <h3 className="text-xl font-serif mb-6">Change Password</h3>
+      <form onSubmit={handleUpdate} className="space-y-4">
+        <div>
+          <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">New Password</label>
+          <input 
+            type="password" 
+            value={pass}
+            onChange={e => setPass(e.target.value)}
+            className="w-full p-3 border border-neutral-300 rounded-md focus:outline-none focus:border-neutral-900"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Confirm Password</label>
+          <input 
+            type="password" 
+            value={confirm}
+            onChange={e => setConfirm(e.target.value)}
+            className="w-full p-3 border border-neutral-300 rounded-md focus:outline-none focus:border-neutral-900"
+          />
+        </div>
+
+        {msg && (
+          <div className={`text-sm p-2 rounded text-center ${status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {msg}
+          </div>
+        )}
+
+        <button 
+          type="submit" 
+          disabled={status === 'saving'}
+          className="w-full bg-neutral-900 text-white py-3 rounded-md text-sm uppercase tracking-widest hover:bg-neutral-800 disabled:opacity-50"
+        >
+          {status === 'saving' ? 'Updating...' : 'Update Password'}
+        </button>
+      </form>
+    </div>
+  );
+};
 
 const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = ({ series, onSuccess }) => {
   const [status, setStatus] = useState<UploadStatus>(UploadStatus.IDLE);
