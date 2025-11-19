@@ -29,7 +29,6 @@ export interface NavigationState {
 export enum UploadStatus {
   IDLE,
   COMPRESSING,
-  ANALYZING,
   SAVING,
   SUCCESS,
   ERROR
