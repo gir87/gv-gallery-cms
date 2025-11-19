@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Photo, PhotoSeries, UploadStatus } from '../types';
 import { compressImage, generateId } from '../utils/imageHelpers';
 import { savePhoto, deletePhoto, saveSeries, deleteSeries, updatePassword, updatePhoto } from '../services/storageService';
@@ -60,7 +60,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, 
           onClose={() => setEditingPhoto(null)}
           onSave={async (updated) => {
             await updatePhoto(updated);
-            setEditingPhoto(null);
+            // Note: We do not close the modal here anymore, to allow further edits.
             refreshData();
           }}
         />
@@ -371,10 +371,19 @@ const EditPhotoModal: React.FC<{
     seriesId: photo.seriesId || ''
   });
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setSuccess(false);
     
     const updated: Photo = {
       ...photo,
@@ -386,6 +395,7 @@ const EditPhotoModal: React.FC<{
 
     await onSave(updated);
     setSaving(false);
+    setSuccess(true);
   };
 
   return (
@@ -443,21 +453,31 @@ const EditPhotoModal: React.FC<{
           </div>
         </div>
 
-        <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex justify-end gap-3">
-          <button 
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-neutral-500 hover:text-neutral-900"
-          >
-            Cancel
-          </button>
-          <button 
-            form="edit-form"
-            type="submit"
-            disabled={saving}
-            className="px-6 py-2 bg-neutral-900 text-white rounded text-sm uppercase tracking-wider hover:bg-neutral-800 disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+        <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex justify-between items-center gap-3">
+          <div className="flex-1">
+            {success && (
+              <span className="text-green-600 bg-green-50 px-3 py-1 rounded border border-green-100 text-sm font-medium flex items-center gap-2 w-fit animate-fade-in">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                Changes saved successfully!
+              </span>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button 
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-neutral-500 hover:text-neutral-900"
+            >
+              Close
+            </button>
+            <button 
+              form="edit-form"
+              type="submit"
+              disabled={saving}
+              className="px-6 py-2 bg-neutral-900 text-white rounded text-sm uppercase tracking-wider hover:bg-neutral-800 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
