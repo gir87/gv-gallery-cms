@@ -1,6 +1,7 @@
+
 /**
- * Compresses an image file to a smaller base64 string to respect LocalStorage limits.
- * Target max dimension: 1200px, Quality: 0.8
+ * Compresses an image file to a smaller base64 string.
+ * Target max dimension: 2500px, Quality: 0.85
  */
 export const compressImage = (file: File): Promise<{ base64: string; width: number; height: number }> => {
   return new Promise((resolve, reject) => {
@@ -11,8 +12,9 @@ export const compressImage = (file: File): Promise<{ base64: string; width: numb
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
+        // Increased from 1200 to 2500 for better quality on large screens
+        const MAX_WIDTH = 2500;
+        const MAX_HEIGHT = 2500;
         let width = img.width;
         let height = img.height;
 
@@ -37,8 +39,8 @@ export const compressImage = (file: File): Promise<{ base64: string; width: numb
         }
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Compress to JPEG
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        // Compress to JPEG with 0.85 quality
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
         resolve({ base64: dataUrl, width, height });
       };
       img.onerror = (err) => reject(err);
