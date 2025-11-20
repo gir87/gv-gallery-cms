@@ -5,7 +5,7 @@ import { Photo, PhotoSeries, AboutConfig } from '../types';
 const API_URL = '/api.php'; 
 
 const LOCAL_STORAGE_KEYS = {
-  TOKEN: 'lumina_token'
+  TOKEN: 'gvgallery_token'
 };
 
 // --- AUTHENTICATION ---
