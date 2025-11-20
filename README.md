@@ -1,4 +1,4 @@
-# Lumina Portfolio CMS
+# GV Gallery CMS
 
 A minimalist, high-performance photography portfolio with a built-in Content Management System (CMS). 
 
