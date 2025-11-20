@@ -26,7 +26,7 @@ export const About: React.FC = () => {
         {/* Left: Content */}
         <div className="max-w-xl">
           <h2 className="text-4xl md:text-5xl font-serif mb-8">{data.title || 'About'}</h2>
-          <div className="text-neutral-600 text-lg font-light leading-relaxed space-y-6 whitespace-pre-wrap">
+          <div className="text-neutral-600 text-base font-light leading-relaxed space-y-6 whitespace-pre-wrap">
             {data.text || 'No information available yet.'}
           </div>
         </div>
