@@ -1,6 +1,9 @@
 # GV Gallery CMS
 
+![GoogleAiStudio](screenshots/google_ai_studio.png)
+
 A minimalist, high-performance photography portfolio with a built-in Content Management System (CMS). 
+This whole project has been vibe coded with Google AI Studio and some minor details by hand.
 
 ## Features
 
@@ -9,6 +12,7 @@ A minimalist, high-performance photography portfolio with a built-in Content Man
 *   **Lightbox:** Full-screen, immersive image viewer with keyboard navigation (Arrow Keys, Esc).
 *   **Series Support:** Organize photos into specific collections/series (e.g., "Norway", "Portraits").
 *   **Responsive Design:** Fully mobile-optimized with a collapsible sidebar.
+![ScreenshotGvGalleryCMS1](screenshots/screen1.png)
 
 ### Admin Dashboard
 *   **Secure Login:** PHP Session/Token-based authentication.
@@ -19,6 +23,10 @@ A minimalist, high-performance photography portfolio with a built-in Content Man
 *   **Series Management:** Create and delete photo series.
 *   **Settings:** Change admin password directly from the dashboard.
 
+![ScreenshotGvGalleryCMS2](screenshots/screen2.png)
+![ScreenshotGvGalleryCMS4](screenshots/screen4.png)
+![ScreenshotGvGalleryCMS5](screenshots/screen5.png)
+![ScreenshotGvGalleryCMS3](screenshots/screen3.png)
 ---
 
 ## Installation Guide
@@ -33,7 +41,7 @@ This application is designed to run on standard shared web hosting (Apache/Nginx
 1.  Log in to your hosting control panel (e.g., cPanel, phpMyAdmin).
 2.  Create a new MySQL Database and User.
 3.  Open the file `init/create_tables.sql` located in this project.
-4.  Run the SQL content in phpMyAdmin to create the required tables (`users`, `photos`, `series`) and the default admin user.
+4.  Run the SQL content in phpMyAdmin to create the required tables (`users`, `photos`, `series`,`app_settings`) and the default admin user.
 
 ### Step 2: Backend Setup
 1.  Open `init/api.php` in a text editor.
