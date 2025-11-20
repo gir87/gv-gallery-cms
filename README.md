@@ -77,5 +77,5 @@ After installation, your server should look like this:
 2.  Click **Admin Area** in the sidebar.
 3.  **Default Credentials:**
     *   Username: `admin`
-    *   Password: `lumina123`
+    *   Password: `gvgallery123`
 4.  **Security Warning:** Immediately go to the **Settings** tab in the dashboard and change your password.
