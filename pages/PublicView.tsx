@@ -60,10 +60,6 @@ export const PublicView: React.FC<PublicViewProps> = ({ photos, seriesList, curr
           </div>
         ) : (
           <div className="mb-16 max-w-2xl">
-            <h2 className="text-4xl md:text-5xl font-serif mb-6">Selected Works</h2>
-            <p className="text-neutral-500 text-lg font-light leading-relaxed">
-              A collection of moments, light, and shadow captured across the globe.
-            </p>
           </div>
         )}
         
