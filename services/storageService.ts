@@ -2,7 +2,7 @@
 import { Photo, PhotoSeries, AboutConfig } from '../types';
 
 // API URL relative to the domain.
-const API_URL = '/api.php'; 
+const API_URL = 'api.php'; 
 
 const LOCAL_STORAGE_KEYS = {
   TOKEN: 'gvgallery_token'
