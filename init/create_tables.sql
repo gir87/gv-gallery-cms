@@ -1,4 +1,7 @@
--- 1. Create the tables
+-- --------------------------------------------------------
+-- 1. Users Table (Admin)
+-- --------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
@@ -6,6 +9,14 @@ CREATE TABLE IF NOT EXISTS `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Insert default admin user (Password is 'lumina123')
+INSERT IGNORE INTO `users` (`username`, `password_hash`) VALUES
+('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+
+-- --------------------------------------------------------
+-- 2. Series Table
+-- --------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS `series` (
   `id` varchar(50) NOT NULL,
@@ -15,6 +26,10 @@ CREATE TABLE IF NOT EXISTS `series` (
   `created_at` bigint(20) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+-- 3. Photos Table
+-- --------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS `photos` (
   `id` varchar(50) NOT NULL,
@@ -26,9 +41,23 @@ CREATE TABLE IF NOT EXISTS `photos` (
   `created_at` bigint(20) NOT NULL,
   `width` int(11) DEFAULT 0,
   `height` int(11) DEFAULT 0,
+  `is_homepage` TINYINT(1) DEFAULT 0,
+  `order_index` INT DEFAULT 9999,
   PRIMARY KEY (`id`)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 2. Insert default admin user (Password is 'lumina123')
-INSERT INTO `users` (`username`, `password_hash`) VALUES
-('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+-- --------------------------------------------------------
+-- 4. App Settings Table (About Page & Config)
+-- --------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `app_settings` (
+  `setting_key` varchar(50) NOT NULL,
+  `setting_value` text,
+  PRIMARY KEY (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Insert default settings
+INSERT IGNORE INTO `app_settings` (`setting_key`, `setting_value`) VALUES
+('about_title', 'About Me'),
+('about_text', 'Welcome to my photography portfolio.'),
+('about_image_url', '');
