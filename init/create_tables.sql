@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Insert default admin user (Password is 'lumina123')
+-- Insert default admin user (Password is 'gvgallery123') or generate at https://bcrypt-generator.com
 INSERT IGNORE INTO `users` (`username`, `password_hash`) VALUES
-('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+('admin', '$2a$12$EYYSXN24vccK/vriUEvkDuBIsf8OcY36TgK.5ei5TPFJSyfTarPV2');
 
 -- --------------------------------------------------------
 -- 2. Series Table
@@ -61,3 +61,4 @@ INSERT IGNORE INTO `app_settings` (`setting_key`, `setting_value`) VALUES
 ('about_title', 'About Me'),
 ('about_text', 'Welcome to my photography portfolio.'),
 ('about_image_url', '');
+
