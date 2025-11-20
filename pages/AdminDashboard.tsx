@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Photo, PhotoSeries, UploadStatus } from '../types';
+import { Photo, PhotoSeries, UploadStatus, AboutConfig } from '../types';
 import { compressImage, generateId } from '../utils/imageHelpers';
-import { savePhoto, deletePhoto, saveSeries, deleteSeries, updatePassword, updatePhoto } from '../services/storageService';
+import { savePhoto, deletePhoto, saveSeries, deleteSeries, updatePassword, updatePhoto, fetchSettings, saveSettings, uploadAsset } from '../services/storageService';
 
 interface AdminDashboardProps {
   photos: Photo[];
@@ -60,7 +60,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, 
           onClose={() => setEditingPhoto(null)}
           onSave={async (updated) => {
             await updatePhoto(updated);
-            // Note: We do not close the modal here anymore, to allow further edits.
             refreshData();
           }}
         />
@@ -77,7 +76,22 @@ const SettingsPanel: React.FC = () => {
   const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [msg, setMsg] = useState('');
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  // About Page State
+  const [aboutData, setAboutData] = useState<AboutConfig>({ title: '', text: '', imageUrl: '' });
+  const [aboutLoading, setAboutLoading] = useState(true);
+  const [aboutSaving, setAboutSaving] = useState(false);
+  const [aboutMsg, setAboutMsg] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await fetchSettings();
+      setAboutData(data);
+      setAboutLoading(false);
+    };
+    load();
+  }, []);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pass.length < 6) {
       setMsg('Password must be at least 6 characters');
@@ -103,43 +117,135 @@ const SettingsPanel: React.FC = () => {
     }
   };
 
+  const handleSaveAbout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAboutSaving(true);
+    setAboutMsg('');
+    const success = await saveSettings(aboutData);
+    setAboutSaving(false);
+    if (success) {
+      setAboutMsg('Content saved successfully!');
+    } else {
+      setAboutMsg('Failed to save content.');
+    }
+  };
+
+  const handleAboutImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      setAboutMsg('Uploading image...');
+      const { base64 } = await compressImage(file);
+      const url = await uploadAsset(base64, 'about_author');
+      if (url) {
+        setAboutData(prev => ({ ...prev, imageUrl: url }));
+        setAboutMsg('Image uploaded. Don\'t forget to click Save Changes.');
+      } else {
+        setAboutMsg('Failed to upload image.');
+      }
+    } catch (err) {
+      console.error(err);
+      setAboutMsg('Error processing image.');
+    }
+  };
+
   return (
-    <div className="max-w-md mx-auto mt-12 bg-neutral-50 p-8 rounded-xl border border-neutral-200">
-      <h3 className="text-xl font-serif mb-6">Change Password</h3>
-      <form onSubmit={handleUpdate} className="space-y-4">
-        <div>
-          <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">New Password</label>
-          <input 
-            type="password" 
-            value={pass}
-            onChange={e => setPass(e.target.value)}
-            className="w-full p-3 border border-neutral-300 rounded-md focus:outline-none focus:border-neutral-900"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Confirm Password</label>
-          <input 
-            type="password" 
-            value={confirm}
-            onChange={e => setConfirm(e.target.value)}
-            className="w-full p-3 border border-neutral-300 rounded-md focus:outline-none focus:border-neutral-900"
-          />
-        </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+      
+      {/* About Page Settings */}
+      <div className="bg-neutral-50 p-8 rounded-xl border border-neutral-200">
+        <h3 className="text-xl font-serif mb-6">About Page Content</h3>
+        {aboutLoading ? <p>Loading settings...</p> : (
+          <form onSubmit={handleSaveAbout} className="space-y-4">
+             <div>
+              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Page Title</label>
+              <input 
+                type="text" 
+                value={aboutData.title}
+                onChange={e => setAboutData({...aboutData, title: e.target.value})}
+                className="w-full p-3 border border-neutral-300 rounded-md focus:outline-none focus:border-neutral-900"
+                placeholder="e.g. About Me"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Bio Text</label>
+              <textarea 
+                value={aboutData.text}
+                onChange={e => setAboutData({...aboutData, text: e.target.value})}
+                className="w-full p-3 border border-neutral-300 rounded-md focus:outline-none focus:border-neutral-900 h-40"
+                placeholder="Write your biography here..."
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-bold uppercase text-neutral-500 mb-2">Author Image</label>
+              <div className="flex items-center gap-4">
+                {aboutData.imageUrl && (
+                  <img src={aboutData.imageUrl} alt="Author" className="w-16 h-16 rounded object-cover border border-neutral-300" />
+                )}
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleAboutImageUpload}
+                  className="text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-neutral-200 file:text-neutral-700 hover:file:bg-neutral-300"
+                />
+              </div>
+            </div>
 
-        {msg && (
-          <div className={`text-sm p-2 rounded text-center ${status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {msg}
-          </div>
+            {aboutMsg && (
+              <p className="text-sm text-neutral-600 italic">{aboutMsg}</p>
+            )}
+
+            <button 
+              type="submit" 
+              disabled={aboutSaving}
+              className="w-full bg-neutral-900 text-white py-3 rounded-md text-sm uppercase tracking-widest hover:bg-neutral-800 disabled:opacity-50"
+            >
+              {aboutSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </form>
         )}
+      </div>
 
-        <button 
-          type="submit" 
-          disabled={status === 'saving'}
-          className="w-full bg-neutral-900 text-white py-3 rounded-md text-sm uppercase tracking-widest hover:bg-neutral-800 disabled:opacity-50"
-        >
-          {status === 'saving' ? 'Updating...' : 'Update Password'}
-        </button>
-      </form>
+      {/* Password Settings */}
+      <div className="bg-neutral-50 p-8 rounded-xl border border-neutral-200 h-fit">
+        <h3 className="text-xl font-serif mb-6">Change Admin Password</h3>
+        <form onSubmit={handleUpdatePassword} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">New Password</label>
+            <input 
+              type="password" 
+              value={pass}
+              onChange={e => setPass(e.target.value)}
+              className="w-full p-3 border border-neutral-300 rounded-md focus:outline-none focus:border-neutral-900"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Confirm Password</label>
+            <input 
+              type="password" 
+              value={confirm}
+              onChange={e => setConfirm(e.target.value)}
+              className="w-full p-3 border border-neutral-300 rounded-md focus:outline-none focus:border-neutral-900"
+            />
+          </div>
+
+          {msg && (
+            <div className={`text-sm p-2 rounded text-center ${status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {msg}
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            disabled={status === 'saving'}
+            className="w-full bg-neutral-900 text-white py-3 rounded-md text-sm uppercase tracking-widest hover:bg-neutral-800 disabled:opacity-50"
+          >
+            {status === 'saving' ? 'Updating...' : 'Update Password'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
@@ -161,11 +267,8 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
 
     setStatus(UploadStatus.COMPRESSING);
     try {
-      // We only need base64 for the upload preview and saving
       const { base64 } = await compressImage(file);
       setPreview(base64);
-      
-      // Use filename as default title (remove extension)
       const defaultTitle = file.name.replace(/\.[^/.]+$/, "");
       
       setFormData(prev => ({
@@ -190,7 +293,7 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
 
     const newPhoto: Photo = {
       id: generateId(),
-      url: preview, // This is the base64 string
+      url: preview,
       title: formData.title,
       description: formData.description,
       seriesId: formData.seriesId || null,
@@ -202,7 +305,6 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
 
     await savePhoto(newPhoto);
     
-    // Reset
     setPreview(null);
     setFormData({ title: '', description: '', tags: '', seriesId: '' });
     if (fileInputRef.current) fileInputRef.current.value = '';

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { PublicView } from './pages/PublicView';
+import { About } from './pages/About';
 import { Login } from './components/Login';
 import { NavigationState, Photo, PhotoSeries } from './types';
 import { fetchData, isAuthenticated, logout } from './services/storageService';
@@ -28,7 +29,7 @@ function App() {
     setIsAdmin(isAuthenticated());
   }, []);
 
-  const handleNavigate = (view: 'home' | 'series' | 'admin', seriesId?: string) => {
+  const handleNavigate = (view: 'home' | 'series' | 'about' | 'admin', seriesId?: string) => {
     if (view === 'admin' && !isAdmin) {
        // Just verify session
        if (isAuthenticated()) {
@@ -48,6 +49,41 @@ function App() {
     logout();
     setIsAdmin(false);
     setNavState({ view: 'home' });
+  };
+
+  const renderContent = () => {
+    if (navState.view === 'admin') {
+      if (isAdmin) {
+        return (
+          <div className="relative">
+            <button 
+              onClick={handleLogout} 
+              className="absolute top-6 right-6 text-xs text-red-500 hover:text-red-700 uppercase tracking-widest"
+            >
+              Logout
+            </button>
+            <AdminDashboard 
+              photos={photos} 
+              series={series} 
+              refreshData={loadData}
+            />
+          </div>
+        );
+      }
+      return <Login onLoginSuccess={handleLoginSuccess} />;
+    }
+
+    if (navState.view === 'about') {
+      return <About />;
+    }
+
+    return (
+      <PublicView 
+        photos={photos}
+        seriesList={series}
+        currentSeriesId={navState.seriesId}
+      />
+    );
   };
 
   return (
@@ -70,33 +106,7 @@ function App() {
              <div className="animate-pulse text-neutral-400 tracking-widest text-sm uppercase">Loading Portfolio...</div>
            </div>
         ) : (
-          <>
-            {navState.view === 'admin' ? (
-              isAdmin ? (
-                <div className="relative">
-                  <button 
-                    onClick={handleLogout} 
-                    className="absolute top-6 right-6 text-xs text-red-500 hover:text-red-700 uppercase tracking-widest"
-                  >
-                    Logout
-                  </button>
-                  <AdminDashboard 
-                    photos={photos} 
-                    series={series} 
-                    refreshData={loadData}
-                  />
-                </div>
-              ) : (
-                <Login onLoginSuccess={handleLoginSuccess} />
-              )
-            ) : (
-              <PublicView 
-                photos={photos}
-                seriesList={series}
-                currentSeriesId={navState.seriesId}
-              />
-            )}
-          </>
+          renderContent()
         )}
       </main>
     </div>

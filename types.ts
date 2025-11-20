@@ -1,6 +1,6 @@
 export interface Photo {
   id: string;
-  url: string; // Base64 data URI
+  url: string; // Base64 data URI or relative path
   title: string;
   description: string;
   seriesId: string | null;
@@ -18,7 +18,13 @@ export interface PhotoSeries {
   createdAt: number;
 }
 
-export type ViewState = 'home' | 'series' | 'admin';
+export interface AboutConfig {
+  title: string;
+  text: string;
+  imageUrl: string;
+}
+
+export type ViewState = 'home' | 'series' | 'about' | 'admin';
 
 // For the router/navigation
 export interface NavigationState {

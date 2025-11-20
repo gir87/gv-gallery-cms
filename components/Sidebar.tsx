@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PhotoSeries } from '../types';
 
 interface SidebarProps {
   series: PhotoSeries[];
   currentView: string;
   currentSeriesId?: string;
-  onNavigate: (view: 'home' | 'series' | 'admin', seriesId?: string) => void;
+  onNavigate: (view: 'home' | 'series' | 'about' | 'admin', seriesId?: string) => void;
   isOpen: boolean;
   toggleOpen: () => void;
 }
@@ -18,6 +18,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   toggleOpen
 }) => {
+  const [seriesExpanded, setSeriesExpanded] = useState(true);
+
   return (
     <>
       {/* Mobile Toggle */}
@@ -46,38 +48,67 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             Lumina.
           </h1>
-          <p className="text-xs text-neutral-500 mt-2 font-sans uppercase tracking-widest">Photography</p>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto no-scrollbar">
-          <ul className="space-y-4">
+          <ul className="space-y-6">
+            {/* HOME */}
             <li>
               <button 
                 onClick={() => onNavigate('home')}
                 className={`text-sm uppercase tracking-widest transition-colors ${currentView === 'home' ? 'text-neutral-900 font-semibold' : 'text-neutral-500 hover:text-neutral-900'}`}
               >
-                Portfolio
+                Home
               </button>
             </li>
             
-            {/* Series List */}
-            {series.length > 0 && (
-              <li className="pt-4 pb-2">
-                <span className="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Series</span>
-              </li>
-            )}
-            
-            {series.map((s) => (
-              <li key={s.id}>
-                <button
-                  onClick={() => onNavigate('series', s.id)}
-                  className={`text-sm transition-colors text-left w-full truncate ${currentSeriesId === s.id ? 'text-neutral-900 font-medium' : 'text-neutral-500 hover:text-neutral-900'}`}
-                >
-                  {s.title}
-                </button>
-              </li>
-            ))}
+            {/* SERIES + */}
+            <li>
+              <button 
+                onClick={() => setSeriesExpanded(!seriesExpanded)}
+                className={`flex items-center text-sm uppercase tracking-widest transition-colors w-full text-left ${
+                    (currentView === 'series' || seriesExpanded) ? 'text-neutral-900 font-semibold' : 'text-neutral-500 hover:text-neutral-900'
+                }`}
+              >
+                Series
+                <span className="ml-1 text-xs">{seriesExpanded ? '-' : '+'}</span>
+              </button>
+
+              {/* Expanded Series List */}
+              <div 
+                className={`
+                  overflow-hidden transition-all duration-300 ease-in-out
+                  ${seriesExpanded ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0'}
+                `}
+              >
+                <ul className="space-y-3 pl-1">
+                  {series.map((s) => (
+                    <li key={s.id}>
+                      <button
+                        onClick={() => onNavigate('series', s.id)}
+                        className={`text-sm transition-colors text-left w-full truncate ${currentSeriesId === s.id ? 'text-neutral-900 font-medium' : 'text-neutral-500 hover:text-neutral-900'}`}
+                      >
+                        {s.title}
+                      </button>
+                    </li>
+                  ))}
+                  {series.length === 0 && (
+                     <li className="text-xs text-neutral-300 italic">No series yet</li>
+                  )}
+                </ul>
+              </div>
+            </li>
+
+            {/* ABOUT */}
+            <li>
+              <button 
+                onClick={() => onNavigate('about')}
+                className={`text-sm uppercase tracking-widest transition-colors ${currentView === 'about' ? 'text-neutral-900 font-semibold' : 'text-neutral-500 hover:text-neutral-900'}`}
+              >
+                About
+              </button>
+            </li>
           </ul>
         </nav>
 

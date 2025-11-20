@@ -1,4 +1,4 @@
-import { Photo, PhotoSeries } from '../types';
+import { Photo, PhotoSeries, AboutConfig } from '../types';
 
 // API URL relative to the domain.
 const API_URL = '/api.php'; 
@@ -32,7 +32,6 @@ export const login = async (password: string): Promise<boolean> => {
 };
 
 export const isAuthenticated = (): boolean => {
-  // Checks if a token exists client-side. 
   return !!localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN);
 };
 
@@ -89,7 +88,58 @@ export const fetchData = async (): Promise<{ photos: Photo[], series: PhotoSerie
   }
 };
 
+export const fetchSettings = async (): Promise<AboutConfig> => {
+  try {
+    const res = await fetch(`${API_URL}?action=get_settings`);
+    if (!res.ok) return { title: '', text: '', imageUrl: '' };
+    const data = await res.json();
+    
+    return {
+      title: data.about_title || '',
+      text: data.about_text || '',
+      imageUrl: data.about_image_url || ''
+    };
+  } catch (e) {
+    console.error("Failed to fetch settings", e);
+    return { title: '', text: '', imageUrl: '' };
+  }
+};
+
 // --- ACTIONS ---
+
+export const saveSettings = async (settings: AboutConfig): Promise<boolean> => {
+  try {
+    const payload = {
+      about_title: settings.title,
+      about_text: settings.text,
+      about_image_url: settings.imageUrl
+    };
+    const res = await fetch(`${API_URL}?action=save_settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch (e) {
+    console.error("Failed to save settings", e);
+    return false;
+  }
+};
+
+export const uploadAsset = async (base64Image: string, name: string): Promise<string | null> => {
+  try {
+    const res = await fetch(`${API_URL}?action=upload_asset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64Image, name })
+    });
+    const data = await res.json();
+    return data.success ? data.url : null;
+  } catch (e) {
+    console.error("Failed to upload asset", e);
+    return null;
+  }
+};
 
 export const savePhoto = async (photo: Photo): Promise<void> => {
   const res = await fetch(`${API_URL}?action=upload_photo`, {
