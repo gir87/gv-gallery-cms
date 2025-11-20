@@ -1,3 +1,4 @@
+
 export interface Photo {
   id: string;
   url: string; // Base64 data URI or relative path
@@ -8,6 +9,8 @@ export interface Photo {
   createdAt: number;
   width: number;
   height: number;
+  isHomepage?: boolean;
+  orderIndex?: number;
 }
 
 export interface PhotoSeries {

@@ -1,3 +1,4 @@
+
 import { Photo, PhotoSeries, AboutConfig } from '../types';
 
 // API URL relative to the domain.
@@ -159,6 +160,15 @@ export const updatePhoto = async (photo: Photo): Promise<void> => {
   });
   
   if (!res.ok) throw new Error('Failed to update photo on server');
+};
+
+export const reorderPhotos = async (idsInOrder: string[]): Promise<void> => {
+  const res = await fetch(`${API_URL}?action=reorder_photos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderList: idsInOrder })
+  });
+  if (!res.ok) throw new Error('Failed to reorder photos');
 };
 
 export const deletePhoto = async (id: string): Promise<void> => {

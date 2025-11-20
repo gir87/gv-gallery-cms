@@ -15,13 +15,19 @@ export const PublicView: React.FC<PublicViewProps> = ({ photos, seriesList, curr
 
   // Filter photos based on current view
   const displayedPhotos = useMemo(() => {
-    let list = [...photos];
+    let list = [];
+    
     if (currentSeriesId) {
-      list = list.filter(p => p.seriesId === currentSeriesId);
+      // Series View: Only show photos assigned to this series
+      list = photos.filter(p => p.seriesId === currentSeriesId);
     } else {
-      // Sort by newest first for home view
-      list.sort((a, b) => b.createdAt - a.createdAt);
+      // Home View: Only show photos marked as "Show on Homepage"
+      list = photos.filter(p => p.isHomepage);
     }
+
+    // Sort by order_index (user defined)
+    list.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+    
     return list;
   }, [photos, currentSeriesId]);
 

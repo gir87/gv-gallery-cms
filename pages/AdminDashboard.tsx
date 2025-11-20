@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Photo, PhotoSeries, UploadStatus, AboutConfig } from '../types';
 import { compressImage, generateId } from '../utils/imageHelpers';
-import { savePhoto, deletePhoto, saveSeries, deleteSeries, updatePassword, updatePhoto, fetchSettings, saveSettings, uploadAsset } from '../services/storageService';
+import { savePhoto, deletePhoto, saveSeries, deleteSeries, updatePassword, updatePhoto, fetchSettings, saveSettings, uploadAsset, reorderPhotos } from '../services/storageService';
 
 interface AdminDashboardProps {
   photos: Photo[];
@@ -32,7 +33,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, 
                 : 'border-transparent text-neutral-400 hover:text-neutral-600'
             }`}
           >
-            {tab === 'manage' ? 'All Photos' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === 'manage' ? 'All Photos / Reorder' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
@@ -45,6 +46,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ photos, series, 
             photos={photos} 
             onDelete={async (id) => { await deletePhoto(id); refreshData(); }} 
             onEdit={(photo) => setEditingPhoto(photo)}
+            onReorder={refreshData}
           />
         )}
         
@@ -257,7 +259,8 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
     title: '',
     description: '',
     tags: '',
-    seriesId: ''
+    seriesId: '',
+    isHomepage: false
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -300,13 +303,14 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
       tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
       createdAt: Date.now(),
       width: 0, 
-      height: 0
+      height: 0,
+      isHomepage: formData.isHomepage
     };
 
     await savePhoto(newPhoto);
     
     setPreview(null);
-    setFormData({ title: '', description: '', tags: '', seriesId: '' });
+    setFormData({ title: '', description: '', tags: '', seriesId: '', isHomepage: false });
     if (fileInputRef.current) fileInputRef.current.value = '';
     setStatus(UploadStatus.SUCCESS);
     setTimeout(() => {
@@ -378,18 +382,32 @@ const UploadPanel: React.FC<{ series: PhotoSeries[]; onSuccess: () => void }> = 
           />
         </div>
 
-        <div>
-          <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Assign to Series</label>
-          <select 
-            value={formData.seriesId}
-            onChange={e => setFormData({...formData, seriesId: e.target.value})}
-            className="w-full border border-neutral-200 rounded-md p-2 focus:outline-none focus:border-neutral-900 bg-transparent text-sm"
-          >
-            <option value="">No Series (Single Photo)</option>
-            {series.map(s => (
-              <option key={s.id} value={s.id}>{s.title}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Assign to Series</label>
+            <select 
+              value={formData.seriesId}
+              onChange={e => setFormData({...formData, seriesId: e.target.value})}
+              className="w-full border border-neutral-200 rounded-md p-2 focus:outline-none focus:border-neutral-900 bg-transparent text-sm"
+            >
+              <option value="">None</option>
+              {series.map(s => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="flex items-center pt-4">
+            <label className="flex items-center space-x-2 cursor-pointer select-none">
+              <input 
+                type="checkbox"
+                checked={formData.isHomepage}
+                onChange={e => setFormData({...formData, isHomepage: e.target.checked})}
+                className="w-4 h-4 text-neutral-900 rounded focus:ring-neutral-500 border-gray-300"
+              />
+              <span className="text-sm text-neutral-900">Show on Homepage</span>
+            </label>
+          </div>
         </div>
 
         <div>
@@ -422,40 +440,103 @@ interface ManagePhotosProps {
   photos: Photo[];
   onDelete: (id: string) => Promise<void>;
   onEdit: (photo: Photo) => void;
+  onReorder: () => void;
 }
 
-const ManagePhotos: React.FC<ManagePhotosProps> = ({ photos, onDelete, onEdit }) => {
+const ManagePhotos: React.FC<ManagePhotosProps> = ({ photos, onDelete, onEdit, onReorder }) => {
+  const [localPhotos, setLocalPhotos] = useState(photos);
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+
+  useEffect(() => {
+    setLocalPhotos(photos);
+  }, [photos]);
+
+  const handleDragStart = (e: React.DragEvent, position: number) => {
+    dragItem.current = position;
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnter = (e: React.DragEvent, position: number) => {
+    dragOverItem.current = position;
+    e.preventDefault();
+  };
+
+  const handleDrop = async () => {
+    if (dragItem.current === null || dragOverItem.current === null) return;
+    
+    const copy = [...localPhotos];
+    const dragItemContent = copy[dragItem.current];
+    copy.splice(dragItem.current, 1);
+    copy.splice(dragOverItem.current, 0, dragItemContent);
+    
+    dragItem.current = null;
+    dragOverItem.current = null;
+    setLocalPhotos(copy);
+
+    // Sync with server
+    try {
+      await reorderPhotos(copy.map(p => p.id));
+      onReorder();
+    } catch (e) {
+      console.error("Failed to save order", e);
+      setLocalPhotos(photos); // Revert on error
+    }
+  };
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {photos.map(photo => (
-        <div key={photo.id} className="relative group aspect-square bg-neutral-100 overflow-hidden">
-          <img src={photo.url} className="w-full h-full object-cover" alt={photo.title} />
-          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 z-10">
-             <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(photo);
-              }}
-              className="bg-white text-neutral-900 px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-neutral-100 transition-colors cursor-pointer z-20 shadow-lg w-24"
-            >
-              Edit
-            </button>
-            <button 
-              onClick={async (e) => {
-                e.stopPropagation(); 
-                e.preventDefault();
-                if(window.confirm('Delete this photo?')) {
-                  await onDelete(photo.id);
-                }
-              }}
-              className="bg-white text-red-600 px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-red-50 transition-colors cursor-pointer z-20 shadow-lg w-24"
-            >
-              Delete
-            </button>
+    <div>
+      <div className="mb-4 p-3 bg-blue-50 text-blue-800 text-sm rounded flex items-center">
+        <span className="mr-2">ℹ️</span>
+        Drag and drop photos to reorder them for the Public View.
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {localPhotos.map((photo, index) => (
+          <div 
+            key={photo.id} 
+            draggable
+            onDragStart={(e) => handleDragStart(e, index)}
+            onDragEnter={(e) => handleDragEnter(e, index)}
+            onDragOver={(e) => e.preventDefault()} // Necessary for drop
+            onDrop={handleDrop}
+            className="relative group aspect-square bg-neutral-100 overflow-hidden cursor-move active:cursor-grabbing border border-transparent hover:border-neutral-300 transition-colors"
+          >
+            <img src={photo.url} className="w-full h-full object-cover pointer-events-none" alt={photo.title} />
+            
+            {/* Info Badge */}
+            {photo.isHomepage && (
+              <div className="absolute top-2 right-2 bg-neutral-900/80 text-white text-[10px] px-2 py-1 rounded uppercase font-bold z-10">
+                Home
+              </div>
+            )}
+
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 z-10">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(photo);
+                }}
+                className="bg-white text-neutral-900 px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-neutral-100 transition-colors cursor-pointer z-20 shadow-lg w-24"
+              >
+                Edit
+              </button>
+              <button 
+                onClick={async (e) => {
+                  e.stopPropagation(); 
+                  e.preventDefault();
+                  if(window.confirm('Delete this photo?')) {
+                    await onDelete(photo.id);
+                  }
+                }}
+                className="bg-white text-red-600 px-4 py-2 rounded-md text-xs font-bold uppercase hover:bg-red-50 transition-colors cursor-pointer z-20 shadow-lg w-24"
+              >
+                Delete
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
-      {photos.length === 0 && <p className="col-span-full text-neutral-400 text-sm">No photos uploaded yet.</p>}
+        ))}
+        {localPhotos.length === 0 && <p className="col-span-full text-neutral-400 text-sm">No photos uploaded yet.</p>}
+      </div>
     </div>
   );
 };
@@ -470,7 +551,8 @@ const EditPhotoModal: React.FC<{
     title: photo.title,
     description: photo.description,
     tags: photo.tags.join(', '),
-    seriesId: photo.seriesId || ''
+    seriesId: photo.seriesId || '',
+    isHomepage: photo.isHomepage || false
   });
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -492,7 +574,8 @@ const EditPhotoModal: React.FC<{
       title: formData.title,
       description: formData.description,
       seriesId: formData.seriesId || null,
-      tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean)
+      tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+      isHomepage: formData.isHomepage
     };
 
     await onSave(updated);
@@ -524,17 +607,33 @@ const EditPhotoModal: React.FC<{
                   className="w-full border border-neutral-200 rounded p-2 focus:border-neutral-900 outline-none"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Series</label>
-                <select 
-                  value={formData.seriesId}
-                  onChange={e => setFormData({...formData, seriesId: e.target.value})}
-                  className="w-full border border-neutral-200 rounded p-2 focus:border-neutral-900 outline-none"
-                >
-                  <option value="">None (Single Photo)</option>
-                  {series.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-                </select>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Series</label>
+                  <select 
+                    value={formData.seriesId}
+                    onChange={e => setFormData({...formData, seriesId: e.target.value})}
+                    className="w-full border border-neutral-200 rounded p-2 focus:border-neutral-900 outline-none"
+                  >
+                    <option value="">None (Single Photo)</option>
+                    {series.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+                  </select>
+                </div>
+                
+                <div className="flex items-center pt-4">
+                  <label className="flex items-center space-x-2 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={formData.isHomepage}
+                      onChange={e => setFormData({...formData, isHomepage: e.target.checked})}
+                      className="w-4 h-4 text-neutral-900 rounded focus:ring-neutral-500 border-gray-300"
+                    />
+                    <span className="text-sm text-neutral-900">Show on Homepage</span>
+                  </label>
+                </div>
               </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">Tags</label>
                 <input 

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { PhotoSeries } from '../types';
 
@@ -18,7 +19,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   toggleOpen
 }) => {
-  const [seriesExpanded, setSeriesExpanded] = useState(true);
+  // Default closed
+  const [seriesExpanded, setSeriesExpanded] = useState(false);
 
   return (
     <>
