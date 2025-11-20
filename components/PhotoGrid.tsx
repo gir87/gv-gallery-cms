@@ -17,7 +17,7 @@ export const PhotoGrid: React.FC<PhotoGridProps> = ({ photos, onPhotoClick }) =>
   }
 
   return (
-    <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4 pr-4">
+    <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
       {photos.map((photo) => (
         <PhotoCard key={photo.id} photo={photo} onClick={() => onPhotoClick && onPhotoClick(photo)} />
       ))}
