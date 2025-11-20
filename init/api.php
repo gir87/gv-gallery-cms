@@ -1,22 +1,14 @@
 <?php
-// -------------------------------------------------------------------------
-// CONFIGURATION & HEADERS
-// -------------------------------------------------------------------------
-
 // Prevent PHP warnings/errors from breaking the JSON output
 error_reporting(E_ALL);
 ini_set('display_errors', 0); 
 ini_set('log_errors', 1);
 
-// CORS & JSON Headers
+// headers
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS");
 header("Content-Type: application/json; charset=UTF-8");
-
-// -------------------------------------------------------------------------
-// DATABASE CONNECTION
-// -------------------------------------------------------------------------
 
 // Database Connection
 $host = 'localhost';
@@ -38,44 +30,15 @@ try {
     exit;
 }
 
-// -------------------------------------------------------------------------
-// REQUEST HANDLING
-// -------------------------------------------------------------------------
-
 $method = $_SERVER['REQUEST_METHOD'];
 $input = json_decode(file_get_contents('php://input'), true);
 
-// Handle Preflight OPTIONS request for CORS
+// Handle Preflight Requests
 if ($method === 'OPTIONS') {
     exit(0);
 }
 
-// -------------------------------------------------------------------------
-// HELPER FUNCTIONS
-// -------------------------------------------------------------------------
-
-function saveBase64Image($base64String, $prefix = '') {
-    // Check if valid base64 image string
-    if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $type)) {
-        $data = substr($base64String, strpos($base64String, ',') + 1);
-        $extension = strtolower($type[1]);
-        
-        // Generate unique filename
-        $filename = $prefix . uniqid() . '.' . $extension;
-        $filepath = __DIR__ . '/uploads/' . $filename;
-        
-        // Save file
-        if (file_put_contents($filepath, base64_decode($data))) {
-            return 'uploads/' . $filename;
-        }
-    }
-    return false;
-}
-
-// -------------------------------------------------------------------------
-// AUTHENTICATION
-// -------------------------------------------------------------------------
-
+// --- AUTHENTICATION ---
 if (isset($_GET['action']) && $_GET['action'] === 'login') {
     $username = $input['username'] ?? '';
     $password = $input['password'] ?? '';
@@ -85,7 +48,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'login') {
     $user = $stmt->fetch();
 
     if ($user && password_verify($password, $user['password_hash'])) {
-        // Return success token (simple implementation)
+        // Simple token generation (for production consider JWT)
         echo json_encode(['success' => true, 'token' => bin2hex(random_bytes(16))]);
     } else {
         http_response_code(401);
@@ -94,57 +57,38 @@ if (isset($_GET['action']) && $_GET['action'] === 'login') {
     exit;
 }
 
-// -------------------------------------------------------------------------
-// GET ACTIONS (Fetch Data)
-// -------------------------------------------------------------------------
-
+// --- PUBLIC DATA (GET) ---
 if ($method === 'GET') {
-    $action = $_GET['action'] ?? '';
-
-    // 1. Get App Settings (About Page)
-    if ($action === 'get_settings') {
-        $stmt = $pdo->query("SELECT * FROM app_settings");
-        $rows = $stmt->fetchAll();
-        $settings = [];
-        foreach ($rows as $row) {
-            $settings[$row['setting_key']] = $row['setting_value'];
-        }
-        echo json_encode($settings);
-        exit;
-    }
-
-    // 2. Default: Get All Photos and Series
     try {
-        // Fetch Series
+        // Get Series
         $stmt = $pdo->query("SELECT * FROM series ORDER BY created_at DESC");
         $series = $stmt->fetchAll();
         
-        // Fetch Photos (Sorted by Custom Order, then Date)
-        // 'order_index' logic: 0 is first.
-        $stmt = $pdo->query("SELECT * FROM photos ORDER BY order_index ASC, created_at DESC");
+        // Get Photos
+        $stmt = $pdo->query("SELECT * FROM photos ORDER BY created_at DESC");
         $photos = $stmt->fetchAll();
 
-        // Format Photos for Frontend (CamelCase)
+        // Format for frontend
         $formattedPhotos = array_map(function($p) {
-            $p['url'] = 'uploads/' . $p['filename'];
+            $p['url'] = 'uploads/' . $p['filename']; // Path relative to domain root
             $p['tags'] = json_decode($p['tags']) ?: [];
-            $p['seriesId'] = $p['series_id']; 
+            $p['seriesId'] = $p['series_id']; // Convert snake_case to camelCase
             $p['createdAt'] = (int)$p['created_at'];
             $p['width'] = (int)$p['width'];
             $p['height'] = (int)$p['height'];
-            $p['isHomepage'] = (bool)$p['is_homepage'];
-            $p['orderIndex'] = (int)$p['order_index'];
             
-            // Clean up raw DB columns
-            unset($p['series_id'], $p['created_at'], $p['is_homepage'], $p['order_index']);
+            // Remove raw DB columns not needed by frontend
+            unset($p['series_id']);
+            unset($p['created_at']);
             return $p;
         }, $photos);
         
-        // Format Series for Frontend (CamelCase)
+        // Format Series
         $formattedSeries = array_map(function($s) {
              $s['coverPhotoId'] = $s['cover_photo_id'];
              $s['createdAt'] = (int)$s['created_at'];
-             unset($s['cover_photo_id'], $s['created_at']);
+             unset($s['cover_photo_id']);
+             unset($s['created_at']);
              return $s;
         }, $series);
 
@@ -156,26 +100,26 @@ if ($method === 'GET') {
     exit;
 }
 
-// -------------------------------------------------------------------------
-// POST ACTIONS (Create / Update)
-// -------------------------------------------------------------------------
+// --- ADMIN ACTIONS ---
+// Note: In a real production app, you should verify the Authorization header token here.
 
 if ($method === 'POST') {
     $action = $_GET['action'] ?? '';
 
-    // 1. Upload New Photo
     if ($action === 'upload_photo') {
         $data = $input;
         
+        // Handle Base64 Image
         if (preg_match('/^data:image\/(\w+);base64,/', $data['url'], $type)) {
-            $imgData = substr($data['url'], strpos($data['url'], ',') + 1);
-            $ext = strtolower($type[1]);
+            $data['url'] = substr($data['url'], strpos($data['url'], ',') + 1);
+            $type = strtolower($type[1]); // jpg, png, gif, etc.
             
-            $filename = $data['id'] . '.' . $ext;
+            // Create filename
+            $filename = $data['id'] . '.' . $type;
             $filepath = __DIR__ . '/uploads/' . $filename;
             
-            if (file_put_contents($filepath, base64_decode($imgData))) {
-                $stmt = $pdo->prepare("INSERT INTO photos (id, filename, title, description, series_id, tags, created_at, width, height, is_homepage, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            if (file_put_contents($filepath, base64_decode($data['url']))) {
+                $stmt = $pdo->prepare("INSERT INTO photos (id, filename, title, description, series_id, tags, created_at, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([
                     $data['id'], 
                     $filename, 
@@ -185,52 +129,33 @@ if ($method === 'POST') {
                     json_encode($data['tags']), 
                     $data['createdAt'],
                     $data['width'],
-                    $data['height'],
-                    isset($data['isHomepage']) && $data['isHomepage'] ? 1 : 0,
-                    9999 // Default order index (end of list)
+                    $data['height']
                 ]);
                 echo json_encode(['success' => true]);
             } else {
                  http_response_code(500);
-                 echo json_encode(['error' => 'Failed to write file']);
+                 echo json_encode(['error' => 'Failed to write file to disk']);
             }
         }
     } 
-    // 2. Update Existing Photo
     elseif ($action === 'update_photo') {
         $data = $input;
-        $stmt = $pdo->prepare("UPDATE photos SET title=?, description=?, series_id=?, tags=?, is_homepage=? WHERE id=?");
+        $stmt = $pdo->prepare("UPDATE photos SET title=?, description=?, series_id=?, tags=? WHERE id=?");
         $stmt->execute([
             $data['title'], 
             $data['description'], 
             $data['seriesId'], 
             json_encode($data['tags']), 
-            isset($data['isHomepage']) && $data['isHomepage'] ? 1 : 0,
             $data['id']
         ]);
         echo json_encode(['success' => true]);
     }
-    // 3. Reorder Photos (Drag and Drop)
-    elseif ($action === 'reorder_photos') {
-        $orderList = $input['orderList'] ?? [];
-        if (!empty($orderList)) {
-            // Update each photo's order_index based on array position
-            $sql = "UPDATE photos SET order_index = ? WHERE id = ?";
-            $stmt = $pdo->prepare($sql);
-            foreach ($orderList as $index => $id) {
-                $stmt->execute([$index, $id]);
-            }
-        }
-        echo json_encode(['success' => true]);
-    }
-    // 4. Save/Create Series
     elseif ($action === 'save_series') {
         $s = $input;
         $stmt = $pdo->prepare("INSERT INTO series (id, title, description, cover_photo_id, created_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=?, description=?");
         $stmt->execute([$s['id'], $s['title'], $s['description'], $s['coverPhotoId'], $s['createdAt'], $s['title'], $s['description']]);
         echo json_encode(['success' => true]);
     }
-    // 5. Change Admin Password
     elseif ($action === 'change_password') {
         $newPass = $input['newPassword'] ?? '';
         if (strlen($newPass) < 6) {
@@ -238,44 +163,19 @@ if ($method === 'POST') {
             exit;
         }
         $hash = password_hash($newPass, PASSWORD_DEFAULT);
+        // Updates the user named 'admin'
         $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE username = 'admin'");
         $stmt->execute([$hash]);
         echo json_encode(['success' => true]);
     }
-    // 6. Save App Settings (About Page)
-    elseif ($action === 'save_settings') {
-        $settings = $input;
-        $stmt = $pdo->prepare("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value=?");
-        foreach ($settings as $key => $value) {
-            $stmt->execute([$key, $value, $value]);
-        }
-        echo json_encode(['success' => true]);
-    }
-    // 7. Upload Generic Asset (e.g. Author Photo)
-    elseif ($action === 'upload_asset') {
-        $base64 = $input['image'] ?? '';
-        $namePrefix = $input['name'] ?? 'asset';
-        
-        $path = saveBase64Image($base64, $namePrefix . '_');
-        
-        if ($path) {
-            echo json_encode(['success' => true, 'url' => $path]);
-        } else {
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Upload failed']);
-        }
-    }
 }
-
-// -------------------------------------------------------------------------
-// DELETE ACTIONS
-// -------------------------------------------------------------------------
 
 if ($method === 'DELETE') {
     $id = $_GET['id'] ?? '';
     $type = $_GET['type'] ?? '';
 
     if ($type === 'photo') {
+        // Get filename to delete actual file
         $stmt = $pdo->prepare("SELECT filename FROM photos WHERE id = ?");
         $stmt->execute([$id]);
         $photo = $stmt->fetch();
@@ -288,7 +188,7 @@ if ($method === 'DELETE') {
         }
     } elseif ($type === 'series') {
         $pdo->prepare("DELETE FROM series WHERE id = ?")->execute([$id]);
-        // Decouple photos from this series
+        // Update photos to remove series association (set to NULL)
         $pdo->prepare("UPDATE photos SET series_id = NULL WHERE series_id = ?")->execute([$id]);
     }
     echo json_encode(['success' => true]);
