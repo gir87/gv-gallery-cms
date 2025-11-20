@@ -48,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onNavigate('home')}
             className="text-2xl font-serif font-semibold tracking-tight cursor-pointer hover:opacity-70 transition-opacity"
           >
-            Lumina.
+            gv gallery.
           </h1>
         </div>
 
@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Admin Area
           </button>
           <p className="text-[10px] text-neutral-400 mt-4">
-            &copy; {new Date().getFullYear()} Lumina
+            &copy; {new Date().getFullYear()} gv gallery
           </p>
         </div>
       </aside>
