@@ -15,13 +15,13 @@ This whole project has been vibe coded with Google AI Studio and some minor deta
 ![ScreenshotGvGalleryCMS1](screenshots/screen1.png)
 
 ### Admin Dashboard
-*   **Secure Login:** PHP Session/Token-based authentication.
+*   **Security:** Secure Token-based authentication (Bearer) and strict file type validation (Allow-list).
 *   **Photo Management:**
-    *   **Upload:** Client-side compression before upload to save bandwidth.
-    *   **Edit:** Update titles, descriptions, tags, and series assignments.
-    *   **Delete:** Removes entries from Database and files from Server.
+    *   **Drag & Drop Reordering:** Custom sorting for your photo grid.
+    *   **Upload:** Client-side compression (Max 2500px, 85% Quality) before upload.
+    *   **Edit:** Update titles, descriptions, tags, series assignments, and homepage visibility.
 *   **Series Management:** Create and delete photo series.
-*   **Settings:** Change admin password directly from the dashboard.
+*   **About Page:** Edit your bio and author photo directly from the CMS.
 
 ![ScreenshotGvGalleryCMS2](screenshots/screen2.png)
 ![ScreenshotGvGalleryCMS4](screenshots/screen4.png)
@@ -87,8 +87,6 @@ After installation, your server should look like this:
     *   Username: `admin`
     *   Password: `gvgallery123`
 4.  **Security Warning:** Immediately go to the **Settings** tab in the dashboard and change your password.
-
-
 
 --- 
 
