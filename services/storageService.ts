@@ -1,4 +1,3 @@
-
 import { Photo, PhotoSeries, AboutConfig } from '../types';
 
 // API URL relative to the domain.
@@ -9,6 +8,21 @@ const LOCAL_STORAGE_KEYS = {
 };
 
 // --- AUTHENTICATION ---
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN);
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : ''
+  };
+};
+
+const handleAuthError = (status: number) => {
+  if (status === 401) {
+    logout();
+    window.location.reload();
+  }
+};
 
 export const login = async (password: string): Promise<boolean> => {
   try {
@@ -44,10 +58,11 @@ export const updatePassword = async (newPassword: string): Promise<boolean> => {
   try {
     const res = await fetch(`${API_URL}?action=change_password`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ newPassword })
     });
     
+    if (res.status === 401) handleAuthError(401);
     if (!res.ok) throw new Error('API Error');
     const data = await res.json();
     return data.success;
@@ -117,9 +132,10 @@ export const saveSettings = async (settings: AboutConfig): Promise<boolean> => {
     };
     const res = await fetch(`${API_URL}?action=save_settings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
+    if (res.status === 401) handleAuthError(401);
     return res.ok;
   } catch (e) {
     console.error("Failed to save settings", e);
@@ -131,9 +147,10 @@ export const uploadAsset = async (base64Image: string, name: string): Promise<st
   try {
     const res = await fetch(`${API_URL}?action=upload_asset`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ image: base64Image, name })
     });
+    if (res.status === 401) handleAuthError(401);
     const data = await res.json();
     return data.success ? data.url : null;
   } catch (e) {
@@ -145,48 +162,60 @@ export const uploadAsset = async (base64Image: string, name: string): Promise<st
 export const savePhoto = async (photo: Photo): Promise<void> => {
   const res = await fetch(`${API_URL}?action=upload_photo`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(photo)
   });
   
+  if (res.status === 401) handleAuthError(401);
   if (!res.ok) throw new Error('Failed to save photo to server');
 };
 
 export const updatePhoto = async (photo: Photo): Promise<void> => {
   const res = await fetch(`${API_URL}?action=update_photo`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(photo)
   });
   
+  if (res.status === 401) handleAuthError(401);
   if (!res.ok) throw new Error('Failed to update photo on server');
 };
 
 export const reorderPhotos = async (idsInOrder: string[]): Promise<void> => {
   const res = await fetch(`${API_URL}?action=reorder_photos`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ orderList: idsInOrder })
   });
+  if (res.status === 401) handleAuthError(401);
   if (!res.ok) throw new Error('Failed to reorder photos');
 };
 
 export const deletePhoto = async (id: string): Promise<void> => {
-  const res = await fetch(`${API_URL}?id=${id}&type=photo`, { method: 'DELETE' });
+  const res = await fetch(`${API_URL}?id=${id}&type=photo`, { 
+    method: 'DELETE',
+    headers: getAuthHeaders() 
+  });
+  if (res.status === 401) handleAuthError(401);
   if (!res.ok) throw new Error('Failed to delete photo on server');
 };
 
 export const saveSeries = async (series: PhotoSeries): Promise<void> => {
   const res = await fetch(`${API_URL}?action=save_series`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(series)
   });
   
+  if (res.status === 401) handleAuthError(401);
   if (!res.ok) throw new Error('Failed to save series to server');
 };
 
 export const deleteSeries = async (id: string): Promise<void> => {
-  const res = await fetch(`${API_URL}?id=${id}&type=series`, { method: 'DELETE' });
+  const res = await fetch(`${API_URL}?id=${id}&type=series`, { 
+    method: 'DELETE',
+    headers: getAuthHeaders() 
+  });
+  if (res.status === 401) handleAuthError(401);
   if (!res.ok) throw new Error('Failed to delete series on server');
 };
