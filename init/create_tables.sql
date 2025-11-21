@@ -1,11 +1,9 @@
--- --------------------------------------------------------
--- 1. Users Table (Admin)
--- --------------------------------------------------------
-
+-- Users Table with Auth Token
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
+  `auth_token` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -14,10 +12,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 INSERT IGNORE INTO `users` (`username`, `password_hash`) VALUES
 ('admin', '$2a$12$EYYSXN24vccK/vriUEvkDuBIsf8OcY36TgK.5ei5TPFJSyfTarPV2');
 
--- --------------------------------------------------------
--- 2. Series Table
--- --------------------------------------------------------
-
+-- Series Table
 CREATE TABLE IF NOT EXISTS `series` (
   `id` varchar(50) NOT NULL,
   `title` varchar(255) NOT NULL,
@@ -27,10 +22,7 @@ CREATE TABLE IF NOT EXISTS `series` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
--- 3. Photos Table
--- --------------------------------------------------------
-
+-- Photos Table (with Homepage flag and Sort Order)
 CREATE TABLE IF NOT EXISTS `photos` (
   `id` varchar(50) NOT NULL,
   `filename` varchar(255) NOT NULL,
@@ -46,19 +38,14 @@ CREATE TABLE IF NOT EXISTS `photos` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
--- 4. App Settings Table (About Page & Config)
--- --------------------------------------------------------
-
+-- App Settings (About Page)
 CREATE TABLE IF NOT EXISTS `app_settings` (
   `setting_key` varchar(50) NOT NULL,
   `setting_value` text,
   PRIMARY KEY (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Insert default settings
 INSERT IGNORE INTO `app_settings` (`setting_key`, `setting_value`) VALUES
 ('about_title', 'About Me'),
-('about_text', 'Welcome to my photography portfolio.'),
+('about_text', 'Welcome to my portfolio.'),
 ('about_image_url', '');
-
